@@ -271,7 +271,10 @@ class MainActivity : AppCompatActivity() {
         }
         viewModel.getLocation()
 
-        if (!BuildConfig.DEBUG) viewModel.checkOfficialBuild(packageName, signingCertSha256())
+        // CuteNovna (fork GPL-3.0 de SimpMusic): sin candado de build oficial.
+        // El chequeo original bloqueaba cualquier paquete/firma que no fuera
+        // el de SimpMusic, así que nuestro fork (com.cutenovna.playermusic,
+        // firmado con nuestro keystore) caía en la pantalla "Unofficial app".
         setContent {
             App(viewModel)
         }
