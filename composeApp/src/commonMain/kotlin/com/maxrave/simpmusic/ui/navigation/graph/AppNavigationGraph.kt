@@ -137,14 +137,5 @@ fun AppNavigationGraph(
             innerPadding = innerPadding,
             navController = navController,
         )
-        // Login screen graph
-        loginScreenGraph(
-            innerPadding = innerPadding,
-            navController = navController,
-            hideBottomBar = hideNavBar,
-            showBottomBar = {
-                showNavBar(false)
-            },
-        )
     }
 }

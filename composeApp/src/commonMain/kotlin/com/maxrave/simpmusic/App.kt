@@ -100,7 +100,6 @@ import com.maxrave.simpmusic.ui.navigation.destination.player.FullscreenDestinat
 import com.maxrave.simpmusic.ui.navigation.destination.search.SearchDestination
 import com.maxrave.simpmusic.ui.navigation.graph.AppNavigationGraph
 import com.maxrave.simpmusic.ui.screen.MiniPlayer
-import com.maxrave.simpmusic.ui.screen.other.UnofficialBuildScreen
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreen
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreenContent
 import com.maxrave.simpmusic.ui.theme.AppTheme
@@ -165,7 +164,6 @@ fun App(
 
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val nowPlayingData by viewModel.nowPlayingState.collectAsStateWithLifecycle()
-    val updateData by viewModel.updateResponse.collectAsStateWithLifecycle()
     val intent by viewModel.intent.collectAsStateWithLifecycle()
     val showNotificationPermissionDialog by viewModel.showNotificationPermissionDialog.collectAsStateWithLifecycle()
 
@@ -182,7 +180,6 @@ fun App(
     val themeMode by viewModel.getThemeMode().collectAsStateWithLifecycle(DataStoreManager.THEME_MODE_DARK)
     val themeColorSource by viewModel.getThemeColorSource().collectAsStateWithLifecycle(DataStoreManager.THEME_COLOR_DEFAULT)
     val customThemeColorHex by viewModel.getCustomThemeColor().collectAsStateWithLifecycle(DataStoreManager.DEFAULT_THEME_COLOR_HEX)
-    val isOfficialBuild by viewModel.isOfficialBuild.collectAsStateWithLifecycle()
     // MiniPlayer visibility: derived, never stored.
     //
     // This used to be a rememberSaveable Boolean written by a LaunchedEffect. Two things went
@@ -214,14 +211,12 @@ fun App(
         mutableStateOf(true)
     }
 
-    var shouldShowUpdateDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
 
     // Every dialog this file raises on its own. Home's launch banner waits until none is up; see
-    // LocalAppDialogOpen. (The banner waits for a running update check by itself.)
+    // LocalAppDialogOpen.
+    // CuteNovna v1.0.2: sin diálogo de actualización (el chequeo está desactivado).
     val appDialogOpen =
-        shouldShowUpdateDialog || showNotificationPermissionDialog ||
+        showNotificationPermissionDialog ||
             showDesktopNotificationPermissionDialog || sleepTimerState.isDone
 
     // Set by the first press or wheel scroll anywhere in the app this launch, or by opening Now
@@ -246,25 +241,6 @@ fun App(
                 navController.navigate(
                     NotificationDestination,
                 )
-            } else if (data.scheme == "wordbyword" && data.host == "lastfm-auth") {
-                // Last.fm sends the user back here after they approve access, carrying the request
-                // token: wordbyword://lastfm-auth?token=xxx. The callback is fixed on the API
-                // account, which is why the scheme is not "simpmusic".
-                val token = data.getQueryParameter("token")
-                Logger.d("MainActivity", "Last.fm callback, token present: ${!token.isNullOrEmpty()}")
-                viewModel.setIntent(null)
-                // Deliberately no navigation: the login screen is almost certainly already open —
-                // the browser was opened from it — and navigating would stack a second copy on top
-                // of it. The token is handed straight to the shared view model, and the screen
-                // closes itself when it sees a session key appear.
-                token?.let { viewModel.completeLastfmLogin(it) }
-            } else if (data.scheme == "simpmusic" && data.host == "discord-auth") {
-                // Discord sends the user back here after they approve SimpMusic (Full builds):
-                // simpmusic://discord-auth?code=…&state=…. No navigation, as with Last.fm: the login
-                // screen is already open and closes itself once the login is stored.
-                Logger.d("MainActivity", "Discord callback, code present: ${!data.getQueryParameter("code").isNullOrEmpty()}")
-                viewModel.setIntent(null)
-                viewModel.completeDiscordLogin(data.toString())
             } else if (data.host == "simpmusic.org" || data.scheme == "simpmusic") {
                 // https://simpmusic.org/app/watch?v=VIDEO_ID
                 // https://simpmusic.org/app/playlist?list=PLAYLIST_ID
@@ -455,15 +431,6 @@ fun App(
         }
     }
 
-    LaunchedEffect(updateData) {
-        val response = updateData ?: return@LaunchedEffect
-        // Only a NEWER release is offered. This used to compare the tags for inequality, which told a
-        // build ahead of the latest release (dev, beta) to "update" back down to it, and told every
-        // F-Droid-channel user to update on each launch: that channel's tag carries no leading "v".
-        if (viewModel.showedUpdateDialog && VersionManager.isBehind(response.tagName)) {
-            shouldShowUpdateDialog = true
-        }
-    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(navBackStackEntry) {
@@ -526,10 +493,6 @@ fun App(
         liquidGlassEnabled = isLiquidGlassEnabled == TRUE,
         titleMarquee = titleMarquee,
     ) {
-        if (!isOfficialBuild) {
-            UnofficialBuildScreen()
-            return@AppTheme
-        }
         // Read inside AppTheme so MaterialTheme reflects the resolved scheme.
         val isLightScheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
 
@@ -924,130 +887,6 @@ fun App(
                                 stringResource(Res.string.good_night),
                                 style = typo().bodySmall,
                             )
-                        },
-                    )
-                }
-
-                if (shouldShowUpdateDialog) {
-                    val response = updateData ?: return@Scaffold
-                    AlertDialog(
-                        properties =
-                            DialogProperties(
-                                dismissOnBackPress = false,
-                                dismissOnClickOutside = false,
-                            ),
-                        onDismissRequest = {
-                            shouldShowUpdateDialog = false
-                            viewModel.showedUpdateDialog = false
-                        },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    shouldShowUpdateDialog = false
-                                    viewModel.showedUpdateDialog = false
-                                    openUrl("https://simpmusic.org/download")
-                                },
-                            ) {
-                                Text(
-                                    stringResource(Res.string.download),
-                                    style = typo().bodySmall,
-                                )
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = {
-                                    shouldShowUpdateDialog = false
-                                    viewModel.showedUpdateDialog = false
-                                },
-                            ) {
-                                Text(
-                                    stringResource(Res.string.cancel),
-                                    style = typo().bodySmall,
-                                )
-                            }
-                        },
-                        title = {
-                            Text(
-                                stringResource(Res.string.update_available),
-                                style = typo().labelSmall,
-                            )
-                        },
-                        text = {
-                            val formatted =
-                                response.releaseTime?.let { input ->
-                                    try {
-                                        val instant = kotlin.time.Instant.parse(input)
-                                        val dateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                                        dateTime.format(
-                                            LocalDateTime.Format {
-                                                day()
-                                                char(' ')
-                                                monthName(MonthNames.ENGLISH_ABBREVIATED)
-                                                char(' ')
-                                                year()
-                                                char(' ')
-                                                hour()
-                                                char(':')
-                                                minute()
-                                                char(':')
-                                                second()
-                                            },
-                                        )
-                                    } catch (e: Exception) {
-                                        stringResource(Res.string.unknown)
-                                    }
-                                } ?: stringResource(Res.string.unknown)
-
-                            val updateMessage =
-                                runBlocking {
-                                    getString(
-                                        Res.string.update_message,
-                                        response.tagName,
-                                        formatted,
-                                        // values-iw/values-in still carry an old %3$s; Compose Resources indexes
-                                        // args without a bounds check, so omitting it crashes the dialog
-                                        "",
-                                    )
-                                }
-                            Column(
-                                Modifier
-                                    .heightIn(
-                                        max = 400.dp,
-                                    ).verticalScroll(
-                                        rememberScrollState(),
-                                    ),
-                            ) {
-                                Text(
-                                    text = updateMessage,
-                                    style = typo().labelMedium,
-                                    modifier =
-                                        Modifier.padding(
-                                            vertical = 8.dp,
-                                        ),
-                                )
-                                Markdown(
-                                    response.body,
-                                    typography =
-                                        markdownTypography(
-                                            h1 = typo().labelLarge,
-                                            h2 = typo().labelMedium,
-                                            h3 = typo().labelSmall,
-                                            text = typo().bodySmall,
-                                            bullet = typo().bodySmall,
-                                            paragraph = typo().bodySmall,
-                                            textLink =
-                                                TextLinkStyles(
-                                                    SpanStyle(
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Normal,
-                                                        fontFamily = fontFamily(),
-                                                        textDecoration = TextDecoration.Underline,
-                                                    ),
-                                                ),
-                                        ),
-                                )
-                            }
                         },
                     )
                 }

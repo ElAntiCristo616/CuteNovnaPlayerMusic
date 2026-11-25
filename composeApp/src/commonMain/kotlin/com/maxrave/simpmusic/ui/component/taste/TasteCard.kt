@@ -63,7 +63,6 @@ import org.jetbrains.compose.resources.stringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.copied_to_clipboard
 import simpmusic.composeapp.generated.resources.retry
-import simpmusic.composeapp.generated.resources.settings
 import simpmusic.composeapp.generated.resources.share
 import simpmusic.composeapp.generated.resources.taste_created_on
 import simpmusic.composeapp.generated.resources.taste_error_generic
@@ -90,7 +89,6 @@ import simpmusic.composeapp.generated.resources.taste_title
 fun TasteCard(
     state: TasteUiState,
     onGenerate: () -> Unit,
-    onOpenSettings: () -> Unit,
     onShare: (TasteProfile) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -127,8 +125,6 @@ fun TasteCard(
 
             is TasteUiState.Failed -> {
                 val notConfigured = state.kind == TasteException.Kind.NOT_CONFIGURED
-                // A refused key or model is fixed in Settings; anything else is worth another try.
-                val fixInSettings = state.kind != TasteException.Kind.TEMPORARY
                 val detail = state.detail?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.taste_error_generic)
                 TasteRowCard(
                     images = state.artistImages,
@@ -142,12 +138,13 @@ fun TasteCard(
                     isError = true,
                 ) {
                     FilledTonalButton(
-                        onClick = if (fixInSettings) onOpenSettings else onGenerate,
+                        // CuteNovna v1.0.2: sin Ajustes; un fallo siempre se reintenta.
+                        onClick = onGenerate,
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         modifier = Modifier.height(36.dp),
                     ) {
                         Text(
-                            text = stringResource(if (fixInSettings) Res.string.settings else Res.string.retry),
+                            text = stringResource(Res.string.retry),
                             color = LocalContentColor.current,
                         )
                     }

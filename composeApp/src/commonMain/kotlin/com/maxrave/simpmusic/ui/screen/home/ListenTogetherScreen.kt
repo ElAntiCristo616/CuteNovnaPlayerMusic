@@ -97,7 +97,6 @@ import com.maxrave.simpmusic.ui.icon.Logout
 import com.maxrave.simpmusic.ui.icon.Settings
 import com.maxrave.simpmusic.ui.icon.Share
 import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherSettingsDestination
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.ListenTogetherViewModel
 import kotlinx.coroutines.delay
@@ -136,7 +135,6 @@ import simpmusic.composeapp.generated.resources.lt_transfer_host_desc
 import simpmusic.composeapp.generated.resources.lt_waiting_approval
 import simpmusic.composeapp.generated.resources.lt_waiting_approval_desc
 import simpmusic.composeapp.generated.resources.lt_you
-import simpmusic.composeapp.generated.resources.settings
 
 /**
  * Listen Together.
@@ -206,7 +204,6 @@ fun ListenTogetherScreen(
         val shareCode: () -> Unit = {
             state.roomCode?.let { shareUrl(title = shareTitle, url = SHARE_PREFIX + it) }
         }
-        val openSettings: () -> Unit = { navController.navigate(ListenTogetherSettingsDestination) }
 
         // Home's ambient top glow, tinted from the THEME rather than artwork — this page has none.
         // Same recipe as HomeScreen's first item: an angled two-stop gradient with a scrim easing
@@ -285,7 +282,7 @@ fun ListenTogetherScreen(
                                 .animateContentSize(),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        WorkArea(state, displayName, codeInput, viewModel, { managing = it }, openSettings)
+                        WorkArea(state, displayName, codeInput, viewModel, { managing = it })
                     }
                     VerticalScrollBar(
                         scrollState = workScroll,
@@ -311,7 +308,7 @@ fun ListenTogetherScreen(
                 AnimatedVisibility(visible = state.inRoom) {
                     RoomCodePoster(state, copyCode, shareCode)
                 }
-                WorkArea(state, displayName, codeInput, viewModel, { managing = it }, openSettings)
+                WorkArea(state, displayName, codeInput, viewModel, { managing = it })
             }
             VerticalScrollBar(
                 scrollState = pageScroll,
@@ -355,7 +352,6 @@ private fun ColumnScope.WorkArea(
     codeInput: String,
     viewModel: ListenTogetherViewModel,
     onManage: (RoomMember) -> Unit,
-    onSettings: () -> Unit,
 ) {
     // Held so the card keeps its text while it animates out — `state.error` is already null by then
     // and the card would collapse through a frame of empty space.
@@ -386,12 +382,12 @@ private fun ColumnScope.WorkArea(
                 canManage = state.isHost,
                 onManage = onManage,
             )
-            FooterActions(onLeave = viewModel::leaveRoom, onSettings = onSettings)
+            FooterActions(onLeave = viewModel::leaveRoom)
         }
 
         state.pendingJoinCode != null -> {
             WaitingForApproval(state.pendingJoinCode.orEmpty(), viewModel::cancelJoin)
-            FooterActions(onLeave = null, onSettings = onSettings)
+            FooterActions(onLeave = null)
         }
 
         else -> {
@@ -420,7 +416,7 @@ private fun ColumnScope.WorkArea(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             )
 
-            FooterActions(onLeave = null, onSettings = onSettings)
+            FooterActions(onLeave = null)
         }
     }
 
@@ -908,14 +904,14 @@ private fun Members(
 }
 
 /**
- * Leaving and settings, as quiet text actions on one line.
+ * Leaving, as a quiet text action on one line.
  *
- * They were two full-width cards, which gave "Settings" the same visual weight as the room itself.
+ * It was a full-width card, which gave "Settings" the same visual weight as the room itself.
+ * CuteNovna v1.0.2: sin Ajustes; solo queda salir de la sala.
  */
 @Composable
 private fun FooterActions(
     onLeave: (() -> Unit)?,
-    onSettings: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -930,12 +926,6 @@ private fun FooterActions(
                 onClick = onLeave,
             )
         }
-        TextAction(
-            icon = SimpIcons.Settings,
-            text = stringResource(Res.string.settings),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            onClick = onSettings,
-        )
     }
 }
 

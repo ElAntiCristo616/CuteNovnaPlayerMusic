@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -93,14 +92,9 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.baseline_favorite_24
-import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.comments
 import simpmusic.composeapp.generated.resources.comments_load_error
-import simpmusic.composeapp.generated.resources.comments_log_in_hint
-import simpmusic.composeapp.generated.resources.comments_log_in_message
 import simpmusic.composeapp.generated.resources.comments_turned_off
-import simpmusic.composeapp.generated.resources.go_to_log_in_page
-import simpmusic.composeapp.generated.resources.log_in
 import simpmusic.composeapp.generated.resources.reply
 import simpmusic.composeapp.generated.resources.replying_to
 import simpmusic.composeapp.generated.resources.retry
@@ -113,9 +107,9 @@ private val LinkColor = Color(0xFF00B0FF)
  * YouTube Music's comments for the track playing. Opens half way and drags up to full height; the
  * comment box stays pinned to the bottom of whatever part of the sheet is showing.
  *
- * Reading needs no account. Writing (post, reply, like, dislike) needs YouTube: signed out, every
- * one of them asks to log in instead. Comment text is handled the way a description is: a
- * timestamp seeks the track, a link opens normally.
+ * Reading needs no account. Writing (post, reply, like, dislike) needs YouTube, so for guests the
+ * comments are read-only: writing does nothing and no login is ever offered. Comment text is
+ * handled the way a description is: a timestamp seeks the track, a link opens normally.
  *
  * [initialDraft] starts the comment box with text already in it (the SoundCloud style's emoji), for
  * the video the sheet opened on only.
@@ -126,7 +120,6 @@ fun CommentsBottomSheet(
     videoId: String,
     isLoggedIn: Boolean,
     onTimestamp: (String) -> Unit,
-    onLogIn: () -> Unit,
     onDismiss: () -> Unit,
     initialDraft: String = "",
     viewModel: CommentsViewModel = koinViewModel(),
@@ -139,18 +132,17 @@ fun CommentsBottomSheet(
         val uriHandler = LocalUriHandler.current
         val localDensity = LocalDensity.current
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-        var showLogIn by remember { mutableStateOf(false) }
         var inputHeight by remember { mutableIntStateOf(0) }
 
-        // The sheet follows the track: skipping while it is open loads the new one's comments. open()
-        // checks the sign-in state itself, so a page loaded signed out reloads after logging in from here.
+        // The sheet follows the track: skipping while it is open loads the new one's comments.
         LaunchedEffect(videoId) { viewModel.open(videoId) }
         // Nothing to write into until the comments are in: loading, failed, or turned off.
         val loaded = uiState.status == CommentsStatus.LOADED
 
-        // Signed out, every write asks to log in first.
+        // CuteNovna v1.0.2: sin cuentas. Los comentarios son solo lectura para invitados:
+        // escribir (me gusta, responder, publicar) no hace nada, sin pedir inicio de sesión.
         fun signedIn(write: () -> Unit) {
-            if (isLoggedIn) write() else showLogIn = true
+            if (isLoggedIn) write()
         }
 
         val rowActions =
@@ -227,12 +219,13 @@ fun CommentsBottomSheet(
                                 )
                             }
                         }
-                        if (loaded) {
+                        // CuteNovna v1.0.2: sin cuentas, los comentarios son solo lectura:
+                        // la caja de texto solo existe para quien inició sesión.
+                        if (loaded && isLoggedIn) {
                             // Keyed on the video: text typed for one track must not be sent to the next one.
                             key(uiState.videoId) {
                                 CommentInput(
                                     sheetState = sheetState,
-                                    isLoggedIn = isLoggedIn,
                                     userAvatar = uiState.header?.userAvatar,
                                     placeholder = uiState.replyingTo?.replyPlaceholder ?: uiState.header?.placeholder.orEmpty(),
                                     replyingTo = uiState.replyingTo?.author,
@@ -241,7 +234,6 @@ fun CommentsBottomSheet(
                                     onCancelReply = viewModel::cancelReply,
                                     onFocus = { scope.launch { sheetState.expand() } },
                                     onPost = { text, clear -> viewModel.post(text, clear) },
-                                    onLogIn = { showLogIn = true },
                                     initialDraft = if (uiState.videoId == draftVideoId) initialDraft else "",
                                     modifier =
                                         Modifier
@@ -252,26 +244,6 @@ fun CommentsBottomSheet(
                         }
                     }
                 }
-            }
-            if (showLogIn) {
-                AlertDialog(
-                    title = { Text(stringResource(Res.string.log_in)) },
-                    text = { Text(stringResource(Res.string.comments_log_in_message)) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showLogIn = false
-                            onLogIn()
-                        }) {
-                            Text(stringResource(Res.string.go_to_log_in_page), color = LocalContentColor.current)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showLogIn = false }) {
-                            Text(stringResource(Res.string.cancel), color = LocalContentColor.current)
-                        }
-                    },
-                    onDismissRequest = { showLogIn = false },
-                )
             }
         }
     }
@@ -529,7 +501,6 @@ private fun FavoriteHeart(size: Dp) {
 @Composable
 private fun CommentInput(
     sheetState: SheetState,
-    isLoggedIn: Boolean,
     userAvatar: String?,
     placeholder: String,
     replyingTo: String?,
@@ -538,7 +509,6 @@ private fun CommentInput(
     onCancelReply: () -> Unit,
     onFocus: () -> Unit,
     onPost: (text: String, clear: () -> Unit) -> Unit,
-    onLogIn: () -> Unit,
     initialDraft: String,
     modifier: Modifier = Modifier,
 ) {
@@ -553,34 +523,17 @@ private fun CommentInput(
                 .imePadding(),
     ) {
         HorizontalDivider(thickness = 1.dp)
-        if (!isLoggedIn) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-            ) {
-                Text(
-                    text = stringResource(Res.string.comments_log_in_hint),
-                    style = typo().bodyMedium,
-                    color = colors.subtitle,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onLogIn) {
-                    Text(stringResource(Res.string.log_in), color = colors.content)
-                }
-            }
-        } else {
-            SignedInInput(
-                userAvatar = userAvatar,
-                placeholder = placeholder,
-                replyingTo = replyingTo,
-                posting = posting,
-                colors = colors,
-                onCancelReply = onCancelReply,
-                onFocus = onFocus,
-                onPost = onPost,
-                initialDraft = initialDraft,
-            )
-        }
+        SignedInInput(
+            userAvatar = userAvatar,
+            placeholder = placeholder,
+            replyingTo = replyingTo,
+            posting = posting,
+            colors = colors,
+            onCancelReply = onCancelReply,
+            onFocus = onFocus,
+            onPost = onPost,
+            initialDraft = initialDraft,
+        )
     }
 }
 

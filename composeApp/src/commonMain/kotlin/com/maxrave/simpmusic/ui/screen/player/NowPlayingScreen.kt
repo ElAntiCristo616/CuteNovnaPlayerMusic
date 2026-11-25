@@ -92,7 +92,6 @@ import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
-import com.maxrave.simpmusic.ui.navigation.destination.login.LoginDestination
 import com.maxrave.simpmusic.ui.navigation.destination.player.FullscreenDestination
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentAppleMusic
@@ -894,11 +893,6 @@ fun NowPlayingScreenContent(
                     if (timestamp != 0.0 && timestamp < total) {
                         sharedViewModel.onUIEvent(UIEvent.UpdateProgress(((timestamp * 100) / total).toFloat()))
                     }
-                },
-                onLogIn = {
-                    showCommentsSheet = false
-                    onDismiss()
-                    navController.navigate(LoginDestination)
                 },
                 onDismiss = { showCommentsSheet = false },
                 initialDraft = commentDraft,

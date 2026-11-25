@@ -1309,52 +1309,14 @@ class SharedViewModel(
     private var _updateResponse = MutableStateFlow<UpdateData?>(null)
     val updateResponse: StateFlow<UpdateData?> = _updateResponse
 
+    /**
+     * CuteNovna v1.0.2: el chequeo de actualizaciones está desactivado por
+     * completo. La app ya no pregunta por nuevas versiones ni muestra el diálogo
+     * de actualización al arrancar. Se deja la función como no-op para no tocar
+     * a sus llamadores (MainActivity ya no la llama, DesktopApp queda inerte).
+     */
     fun checkForUpdate() {
-        // Raised before the coroutine starts, so Home's launch banner, which reads it right after
-        // startup, can never miss a check that is already under way but not yet marked.
-        _isCheckingUpdate.value = true
-        viewModelScope.launch {
-            val updateChannel = dataStoreManager.updateChannel.first()
-            dataStoreManager.putString(
-                "CheckForUpdateAt",
-                System.currentTimeMillis().toString(),
-            )
-            if (updateChannel == DataStoreManager.GITHUB) {
-                updateRepository.checkForGithubReleaseUpdate().collectLatest { response ->
-                    val data = response.data
-                    when (response) {
-                        is Resource.Success if (data != null) -> {
-                            _updateResponse.value = data
-                            showedUpdateDialog = true
-                        }
-
-                        else -> {
-                            log("Check for update error: ${response.message}", LogLevel.WARN)
-                        }
-                    }
-                    _isCheckingUpdate.value = false
-                }
-            } else if (updateChannel == DataStoreManager.FDROID) {
-                updateRepository.checkForFdroidUpdate().collectLatest { response ->
-                    val data = response.data
-                    when (response) {
-                        is Resource.Success if (data != null) -> {
-                            _updateResponse.value = data
-                            showedUpdateDialog = true
-                        }
-
-                        else -> {
-                            log("Check for update error: ${response.message}", LogLevel.WARN)
-                        }
-                    }
-                    _isCheckingUpdate.value = false
-                }
-            }
-        }.invokeOnCompletion {
-            // Also for a channel neither branch handles, and for a check that throws: the launch
-            // banner waits for this flag, so it must never stay raised.
-            _isCheckingUpdate.value = false
-        }
+        // Intencionadamente vacío: sin comprobar actualizaciones.
     }
 
     /**

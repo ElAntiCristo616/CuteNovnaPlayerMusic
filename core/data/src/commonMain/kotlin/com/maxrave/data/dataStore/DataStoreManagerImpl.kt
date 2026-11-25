@@ -82,9 +82,16 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    // CuteNovna v1.0.2: la región es global (US). El default original era "VN"
+    // (Vietnam, país del autor original) y eso teñía el inicio de contenido
+    // vietnamita. Un valor "VN" guardado de antes se trata igual: nadie puede
+    // cambiar la región (ya no hay ajustes), así que todo el mundo queda en global.
     override val location: Flow<String> =
         settingsDataStore.data.map { preferences ->
-            preferences[LOCATION] ?: "VN"
+            when (val stored = preferences[LOCATION]) {
+                null, "VN" -> "US"
+                else -> stored
+            }
         }
 
     override suspend fun setLocation(location: String) {

@@ -88,7 +88,6 @@ import com.maxrave.simpmusic.ui.icon.Groups
 import com.maxrave.simpmusic.ui.icon.PeopleAlt
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.SettingsDestination
 import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
@@ -305,7 +304,6 @@ fun LibraryScreen(
                                     TasteCard(
                                         state = tasteState,
                                         onGenerate = tasteViewModel::generate,
-                                        onOpenSettings = { navController.navigate(SettingsDestination) },
                                         onShare = { sharingTaste = it },
                                         modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp),
                                     )
