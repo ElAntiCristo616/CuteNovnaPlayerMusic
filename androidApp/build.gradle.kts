@@ -16,7 +16,11 @@ plugins {
 android {
     val abis = arrayOf("armeabi-v7a", "arm64-v8a", "x86_64")
 
-    namespace = "com.cutenovna.playermusic"
+    // CuteNovna: el namespace se queda en com.maxrave.simpmusic porque el
+    // código Kotlin vive en ese paquete y usa R y BuildConfig sin calificar,
+    // que AGP genera en el namespace. El applicationId (paquete instalado)
+    // sí es com.cutenovna.playermusic, y eso es lo que ve el usuario.
+    namespace = "com.maxrave.simpmusic"
     compileSdk {
         version = release(37) { minorApiLevel = 2 }
     }
