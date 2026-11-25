@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CuteNovna: verde pino del icono adaptativo y del tema navideño. -->
+    <color name="cutenovna_pine">#0E3426</color>
+    <color name="cutenovna_pine_deep">#04140E</color>
+    <color name="cutenovna_red">#CD2D32</color>
+    <color name="cutenovna_snow">#F5F8F5</color>
+    <color name="cutenovna_sage">#A8C3B5</color>
+</resources>

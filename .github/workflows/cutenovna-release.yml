@@ -1,0 +1,65 @@
+# CuteNovna Player Music — build release FOSS (sin rastreo) y APK firmada.
+#
+# Fork abierto de SimpMusic (GPL-3.0). Compila solo :androidApp en modo FOSS
+# (isFullBuild=false): módulos crashlytics-empty, cast-empty y lastfm-empty,
+# sin Sentry, sin claves de Last.fm ni Discord. Firma con el keystore del fork
+# (secretos SIGNING_* del repo ElAntiCristo616/CuteNovnaPlayerMusic).
+name: CuteNovna release APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - 'README.md'
+      - 'fastlane/**'
+      - 'assets/**'
+      - '.github/**/*.md'
+      - '.github/FUNDING.yml'
+      - '.github/ISSUE_TEMPLATE/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: "microsoft"
+          cache: 'gradle'
+
+      - name: Generate aboutLibraries.json
+        run: ./gradlew exportLibraryDefinitions
+
+      - name: Build release APK (FOSS)
+        run: ./gradlew androidApp:assembleRelease
+
+      - name: Check build-tools version
+        shell: bash
+        run: |
+          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
+          echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
+          echo Last build tool version is: $BUILD_TOOL_VERSION
+
+      - uses: kevin-david/zipalign-sign-android-release@v2
+        id: sign_app
+        with:
+          releaseDirectory: androidApp/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          zipAlign: true
+        env:
+          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
+
+      - name: Upload APK
+        if: steps.sign_app.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CuteNovnaPlayerMusic-release
+          path: androidApp/build/outputs/apk/release/*-signed.apk
