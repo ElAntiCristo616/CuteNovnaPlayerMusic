@@ -185,6 +185,11 @@ fun AppTheme(
     customThemeColor: Color? = null,
     liquidGlassEnabled: Boolean = true,
     titleMarquee: Boolean = true,
+    // CuteNovna v1.0.3: el tema elegido remata el esquema generado. Sin override,
+    // el oscuro queda en pino/rojo/nieve y el claro en grises neutros (lo de antes).
+    colorSchemeOverride: ((ColorScheme) -> ColorScheme)? = null,
+    forcedDarkSchemeOverride: ((ColorScheme) -> ColorScheme)? = null,
+    cutenovnaTheme: CuteNovnaTheme = CuteNovnaTheme.NAVIDAD,
     content:
         @Composable()
         () -> Unit,
@@ -210,7 +215,7 @@ fun AppTheme(
                 seedColor = seedColor,
                 isDark = isDark,
                 style = PaletteStyle.TonalSpot,
-                modifyColorScheme = { cs -> if (isDark) cs.withCuteNovnaDark() else cs.withNeutralLightSurfaces() },
+                modifyColorScheme = { cs -> colorSchemeOverride?.invoke(cs) ?: if (isDark) cs.withCuteNovnaDark() else cs.withNeutralLightSurfaces() },
             )
     // Immersive screens stay dark even at light theme (see [ForceDarkContent]). Resolve their scheme
     // once here instead of letting every such subtree build a palette of its own.
@@ -222,7 +227,7 @@ fun AppTheme(
                 seedColor = seedColor,
                 isDark = true,
                 style = PaletteStyle.TonalSpot,
-                modifyColorScheme = { cs -> cs.withCuteNovnaDark() },
+                modifyColorScheme = { cs -> forcedDarkSchemeOverride?.invoke(cs) ?: cs.withCuteNovnaDark() },
             )
         }
     SystemBarAppearanceEffect(isDark)
@@ -234,6 +239,7 @@ fun AppTheme(
                 LocalContentColor provides colorScheme.onSurfaceVariant,
                 LocalAppColors provides if (isDark) DarkAppColors else LightAppColors,
                 LocalIsDarkTheme provides isDark,
+                LocalCuteNovnaTheme provides cutenovnaTheme,
                 LocalForcedDarkColorScheme provides forcedDarkScheme,
                 LocalAppColorScheme provides colorScheme,
                 LocalAppIsDark provides isDark,

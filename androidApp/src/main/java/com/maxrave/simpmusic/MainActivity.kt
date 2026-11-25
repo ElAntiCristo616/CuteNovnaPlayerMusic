@@ -1,11 +1,9 @@
 package com.maxrave.simpmusic
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.SystemClock
@@ -20,10 +18,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.net.toUri
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.eygraber.uri.toKmpUriOrNull
 import com.maxrave.common.FIRST_TIME_MIGRATION
@@ -39,8 +33,6 @@ import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.di.viewModelModule
-import com.maxrave.simpmusic.service.rss.RssFeedNotifyWork
-import com.maxrave.simpmusic.service.test.notification.NotifyWork
 import com.maxrave.simpmusic.utils.ComposeResUtils
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -51,9 +43,7 @@ import org.koin.core.context.loadKoinModules
 import org.koin.core.context.unloadKoinModules
 import org.koin.dsl.module
 import org.simpmusic.crashlytics.pushPlayerError
-import pub.devrel.easypermissions.EasyPermissions
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 // Process-wide, so a recreated activity (rotation, theme change) does not count as opening the app.
 private var lastLibrarySyncAt = 0L
@@ -206,68 +196,13 @@ class MainActivity : AppCompatActivity() {
                 ),
         )
         viewModel.checkIsRestoring()
-        val request =
-            PeriodicWorkRequestBuilder<NotifyWork>(
-                12L,
-                TimeUnit.HOURS,
-            ).addTag("Worker Test")
-                .setConstraints(
-                    Constraints
-                        .Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build(),
-                ).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "Artist Worker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request,
-        )
-        lifecycleScope.launch {
-            dataStoreManager.blogNotificationEnabled.collect { enabled ->
-                if (enabled == DataStoreManager.TRUE) {
-                    val rssRequest =
-                        PeriodicWorkRequestBuilder<RssFeedNotifyWork>(
-                            24L,
-                            TimeUnit.HOURS,
-                        ).addTag("Blog RSS Worker")
-                            .setConstraints(
-                                Constraints
-                                    .Builder()
-                                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                                    .build(),
-                            ).build()
-                    WorkManager.getInstance(this@MainActivity).enqueueUniquePeriodicWork(
-                        "Blog RSS Worker",
-                        ExistingPeriodicWorkPolicy.KEEP,
-                        rssRequest,
-                    )
-                } else {
-                    WorkManager.getInstance(this@MainActivity).cancelUniqueWork("Blog RSS Worker")
-                }
-            }
-        }
-
-        if (!EasyPermissions.hasPermissions(this, Manifest.permission.POST_NOTIFICATIONS)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val doNotAsk = getString("notification_permission_do_not_ask")
-                if (doNotAsk != "true") {
-                    val wasAsked = getString("notification_permission_asked")
-                    if (wasAsked != "true") {
-                        // First time: request system permission
-                        EasyPermissions.requestPermissions(
-                            this,
-                            runBlocking { ComposeResUtils.getResString(ComposeResUtils.StringType.NOTIFICATION_REQUEST) },
-                            1,
-                            Manifest.permission.POST_NOTIFICATIONS,
-                        )
-                        putString("notification_permission_asked", "true")
-                    } else {
-                        // Already asked before: show custom dialog with "Don't show again"
-                        viewModel.showNotificationPermissionDialog()
-                    }
-                }
-            }
-        }
+        // CuteNovna v1.0.3: sin notificaciones del desarrollador. Se cancelan
+        // los trabajos que publicaban novedades del autor (artistas seguidos y
+        // blog) y ya no se pide el permiso de notificaciones. La notificación
+        // de reproducción NO se toca: la pone el servicio en primer plano y no
+        // necesita este permiso.
+        WorkManager.getInstance(this).cancelUniqueWork("Artist Worker")
+        WorkManager.getInstance(this).cancelUniqueWork("Blog RSS Worker")
         viewModel.getLocation()
 
         // CuteNovna (fork GPL-3.0 de SimpMusic): sin candado de build oficial.

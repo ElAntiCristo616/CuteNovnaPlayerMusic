@@ -545,6 +545,11 @@ interface DataStoreManager {
 
     suspend fun setCustomThemeColor(argbHex: String)
 
+    /** Id del tema CuteNovna elegido ("navidad", "invierno", ...). Navidad por defecto. */
+    val cutenovnaTheme: Flow<String>
+
+    suspend fun setCuteNovnaTheme(themeId: String)
+
     /** One of [NOW_PLAYING_STYLE_SPOTIFY], [NOW_PLAYING_STYLE_M3_EXPRESSIVE], [NOW_PLAYING_STYLE_APPLE_MUSIC], [NOW_PLAYING_STYLE_SOUNDCLOUD]. */
     val nowPlayingStyle: Flow<String>
 

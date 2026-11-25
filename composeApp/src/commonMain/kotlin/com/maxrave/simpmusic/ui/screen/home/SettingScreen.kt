@@ -149,7 +149,6 @@ import com.maxrave.simpmusic.ui.icon.PeopleAlt
 import com.maxrave.simpmusic.ui.icon.PlaylistAdd
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.AppLogDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.CreditDestination
 import com.maxrave.simpmusic.ui.theme.md_theme_dark_primary
 import com.maxrave.simpmusic.ui.theme.parseThemeColorHex
 import com.maxrave.simpmusic.ui.theme.typo
@@ -2717,9 +2716,9 @@ fun SettingScreen(
                     SettingItem(
                         title = stringResource(Res.string.version),
                         subtitle = stringResource(Res.string.version_format, VersionManager.getVersionName()),
-                        onClick = {
-                            navController.navigate(CreditDestination)
-                        },
+                        // CuteNovna v1.0.3: Créditos escondidos (la pantalla existe
+                        // en el código por la atribución GPL, pero no se abre).
+                        onClick = {},
                     )
                     SettingItem(
                         title = stringResource(Res.string.third_party_libraries),

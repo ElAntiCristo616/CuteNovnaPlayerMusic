@@ -84,11 +84,11 @@ import com.maxrave.simpmusic.ui.component.LiquidGlassAppBottomNavigationBar
 import com.maxrave.simpmusic.ui.component.LocalAppDialogOpen
 import com.maxrave.simpmusic.ui.component.LocalNowPlayingOpen
 import com.maxrave.simpmusic.ui.component.LocalUserStarted
+import com.maxrave.simpmusic.ui.component.ThemeParticlesOverlay
 import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.AnalyticsDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.NotificationDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.WrappedDestination
 import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDestination
 import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDynamicPlaylistDestination
@@ -103,6 +103,7 @@ import com.maxrave.simpmusic.ui.screen.MiniPlayer
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreen
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreenContent
 import com.maxrave.simpmusic.ui.theme.AppTheme
+import com.maxrave.simpmusic.ui.theme.CuteNovnaTheme
 import com.maxrave.simpmusic.ui.theme.ForceDarkContent
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.desktopWindowDark
@@ -110,6 +111,7 @@ import com.maxrave.simpmusic.ui.theme.desktopWindowLight
 import com.maxrave.simpmusic.ui.theme.fontFamily
 import com.maxrave.simpmusic.ui.theme.parseThemeColorHex
 import com.maxrave.simpmusic.ui.theme.typo
+import com.maxrave.simpmusic.ui.theme.withCuteNovnaPalette
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.isAppLinkAvailable
 import com.maxrave.simpmusic.utils.libraryTabOf
@@ -172,14 +174,13 @@ fun App(
     // Analytics only makes sense with local tracking on, so its tab follows that setting.
     val isLocalTrackingEnabled by viewModel.getLocalTrackingEnabled().collectAsStateWithLifecycle(DataStoreManager.FALSE)
     val showAnalyticsTab = isLocalTrackingEnabled == TRUE
-    // Mix for you comes from the signed-in YouTube account, so its tab follows the session — the
-    // same condition that used to hide the chip inside Library.
-    val isYouTubeLoggedIn by viewModel.getYouTubeLoggedIn().collectAsStateWithLifecycle(DataStoreManager.FALSE)
-    val showMixForYouTab = isYouTubeLoggedIn == TRUE
+    // CuteNovna v1.0.3: "Mix for you" eliminado — la pestaña pedía cuenta y ya no existe.
+    val showMixForYouTab = false
 
-    val themeMode by viewModel.getThemeMode().collectAsStateWithLifecycle(DataStoreManager.THEME_MODE_DARK)
-    val themeColorSource by viewModel.getThemeColorSource().collectAsStateWithLifecycle(DataStoreManager.THEME_COLOR_DEFAULT)
-    val customThemeColorHex by viewModel.getCustomThemeColor().collectAsStateWithLifecycle(DataStoreManager.DEFAULT_THEME_COLOR_HEX)
+    // CuteNovna v1.0.3: el tema elegido manda sobre el modo y la semilla viejos
+    // (los ajustes están ocultos, así que esos valores ya no se tocan).
+    val cutenovnaThemeId by viewModel.getCuteNovnaTheme().collectAsStateWithLifecycle(CuteNovnaTheme.NAVIDAD.id)
+    val cutenovnaTheme = CuteNovnaTheme.fromId(cutenovnaThemeId)
     // MiniPlayer visibility: derived, never stored.
     //
     // This used to be a rememberSaveable Boolean written by a LaunchedEffect. Two things went
@@ -236,12 +237,9 @@ fun App(
         val data = intent.data
         Logger.d("MainActivity", "onCreate: $data")
         if (data != null) {
-            if (data.scheme == "simpmusic" && data.host == "notification") {
-                viewModel.setIntent(null)
-                navController.navigate(
-                    NotificationDestination,
-                )
-            } else if (data.host == "simpmusic.org" || data.scheme == "simpmusic") {
+            // CuteNovna v1.0.3: sin apartado de notificaciones del desarrollador
+            // (el deep link simpmusic://notification ya no lleva a ningún lado).
+            if (data.host == "simpmusic.org" || data.scheme == "simpmusic") {
                 // https://simpmusic.org/app/watch?v=VIDEO_ID
                 // https://simpmusic.org/app/playlist?list=PLAYLIST_ID
                 // https://simpmusic.org/app/channel/CHANNEL_ID
@@ -486,9 +484,12 @@ fun App(
     val isTabletLandscape = isTablet && currentOrientation() == Orientation.LANDSCAPE
 
     AppTheme(
-        themeMode = themeMode,
-        themeColorSource = themeColorSource,
-        customThemeColor = parseThemeColorHex(customThemeColorHex),
+        themeMode = if (cutenovnaTheme.isDark) DataStoreManager.THEME_MODE_DARK else DataStoreManager.THEME_MODE_LIGHT,
+        themeColorSource = DataStoreManager.THEME_COLOR_CUSTOM,
+        customThemeColor = parseThemeColorHex(cutenovnaTheme.seedHex),
+        colorSchemeOverride = { cs -> cs.withCuteNovnaPalette(cutenovnaTheme.palette, cutenovnaTheme.isDark) },
+        forcedDarkSchemeOverride = { cs -> cs.withCuteNovnaPalette(cutenovnaTheme.darkPalette ?: cutenovnaTheme.palette, true) },
+        cutenovnaTheme = cutenovnaTheme,
         // The setting governs Desktop too, the same as Android: off, every glass surface draws flat.
         liquidGlassEnabled = isLiquidGlassEnabled == TRUE,
         titleMarquee = titleMarquee,
@@ -973,6 +974,9 @@ fun App(
                         },
                     )
                 }
+                // CuteNovna v1.0.3: partículas del tema sobre toda la app (Inicio,
+                // reproductor y demás pantallas). No consumen toques.
+                ThemeParticlesOverlay(theme = cutenovnaTheme, modifier = Modifier.fillMaxSize())
             },
         )
     }

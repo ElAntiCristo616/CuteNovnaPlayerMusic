@@ -72,7 +72,6 @@ import coil3.compose.AsyncImage
 import com.maxrave.domain.data.model.comments.CommentLikeState
 import com.maxrave.domain.data.model.comments.YouTubeComment
 import com.maxrave.simpmusic.expect.ui.VerticalScrollBar
-import com.maxrave.simpmusic.ui.icon.CheckCircle
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.Send
 import com.maxrave.simpmusic.ui.icon.SimpIcons
@@ -393,46 +392,17 @@ private fun CommentRow(
     modifier: Modifier = Modifier,
     footer: @Composable ColumnScope.() -> Unit = {},
 ) {
+    // CuteNovna v1.0.3: sin perfil — ni avatar ni nombre de quien comenta,
+    // solo el texto del comentario y su fecha.
     Row(modifier = modifier.fillMaxWidth()) {
-        AsyncImage(
-            model = comment.authorAvatar,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier =
-                Modifier
-                    .size(avatarSize)
-                    .clip(CircleShape)
-                    .background(colors.handle),
-        )
-        Spacer(modifier = Modifier.width(gap))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (comment.author.isNotEmpty()) {
-                    Text(
-                        text = comment.author,
-                        style = typo().bodySmall,
-                        color = colors.subtitle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                }
-                if (comment.isVerified) {
-                    Icon(
-                        imageVector = SimpIcons.CheckCircle,
-                        contentDescription = null,
-                        tint = colors.subtitle,
-                        modifier = Modifier.padding(start = 3.dp).size(12.dp),
-                    )
-                }
-                if (comment.publishedTime.isNotEmpty()) {
-                    Text(
-                        text = if (comment.author.isNotEmpty()) " · ${comment.publishedTime}" else comment.publishedTime,
-                        style = typo().bodySmall,
-                        color = colors.subtitle,
-                        maxLines = 1,
-                    )
-                }
+            if (comment.publishedTime.isNotEmpty()) {
+                Text(
+                    text = comment.publishedTime,
+                    style = typo().bodySmall,
+                    color = colors.subtitle,
+                    maxLines = 1,
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             DescriptionView(

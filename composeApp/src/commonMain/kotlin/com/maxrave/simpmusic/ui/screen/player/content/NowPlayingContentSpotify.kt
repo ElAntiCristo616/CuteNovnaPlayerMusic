@@ -126,7 +126,6 @@ import com.maxrave.simpmusic.extension.smoothScrimBrush
 import com.maxrave.simpmusic.extension.titleMarquee
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.LyricText
-import com.maxrave.simpmusic.ui.component.SnowfallOverlay
 import com.maxrave.simpmusic.ui.component.AIBadge
 import com.maxrave.simpmusic.ui.component.DescriptionView
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
@@ -1791,8 +1790,6 @@ fun NowPlayingContentSpotify(
                 }
             }
         }
-        // CuteNovna: nieve animada discreta sobre el reproductor.
-        SnowfallOverlay(Modifier.fillMaxSize())
     }
 
     state.screenData.lyricsData?.let { lyricsData ->

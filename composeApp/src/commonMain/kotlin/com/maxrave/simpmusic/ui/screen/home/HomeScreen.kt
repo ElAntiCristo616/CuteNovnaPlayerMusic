@@ -46,10 +46,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -92,7 +89,6 @@ import androidx.lifecycle.compose.currentStateAsState
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.kmpalette.loader.rememberNetworkLoader
@@ -103,7 +99,6 @@ import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.home.HomeItem
 import com.maxrave.domain.data.model.home.chart.Chart
 import com.maxrave.domain.data.model.mood.Mood
-import com.maxrave.domain.extension.now
 import com.maxrave.domain.manager.DataStoreManager.Values.TRUE
 import com.maxrave.domain.mediaservice.handler.PlaylistType
 import com.maxrave.domain.mediaservice.handler.QueueData
@@ -127,7 +122,8 @@ import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.ChristmasLightsStrip
 import com.maxrave.simpmusic.ui.component.Chip
-import com.maxrave.simpmusic.ui.component.SnowfallOverlay
+import com.maxrave.simpmusic.ui.component.ThemePickerButton
+import com.maxrave.simpmusic.ui.component.ThemePickerDialog
 import com.maxrave.simpmusic.ui.component.CreateActions
 import com.maxrave.simpmusic.ui.component.DropdownButton
 import com.maxrave.simpmusic.ui.component.EndOfPage
@@ -143,19 +139,15 @@ import com.maxrave.simpmusic.ui.component.OfflineErrorState
 import com.maxrave.simpmusic.ui.component.QuickPicksItem
 import com.maxrave.simpmusic.ui.component.SectionHeaderButton
 import com.maxrave.simpmusic.ui.component.homeCardAspectRatio
-import com.maxrave.simpmusic.ui.component.rememberHolderPainter
-import com.maxrave.simpmusic.ui.icon.Notifications
-import com.maxrave.simpmusic.ui.icon.Person
-import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.HomeDestination
 import com.maxrave.simpmusic.ui.navigation.destination.home.MoodDestination
-import com.maxrave.simpmusic.ui.navigation.destination.home.NotificationDestination
 import com.maxrave.simpmusic.ui.navigation.destination.library.LibraryDynamicPlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.PodcastDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination
 import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
 import com.maxrave.simpmusic.ui.theme.ArtworkShape
+import com.maxrave.simpmusic.ui.theme.CuteNovnaTheme
 import com.maxrave.simpmusic.ui.theme.LocalLiquidGlassEnabled
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.typo
@@ -244,22 +236,9 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberLazyListState()
     val isScrollingUp by scrollState.isScrollingUp()
-    val accountInfo by viewModel.accountInfo.collectAsStateWithLifecycle()
     val homeData by viewModel.homeItemList.collectAsStateWithLifecycle()
-    // Any shelf YouTube heads with the listener's own avatar over its title (Listen again is one of
-    // several). Home's header already shows the avatar, so those shelves drop it and keep their name
-    // and title. Matched on the name rather than on any shelf title, the way the old Welcome back row did.
-    val homeShelves =
-        remember(homeData, accountInfo) {
-            val accountName = accountInfo?.first
-            if (accountName.isNullOrBlank()) {
-                homeData
-            } else {
-                homeData.map {
-                    if (it.subtitle.equals(accountName, ignoreCase = true)) it.copy(thumbnail = null) else it
-                }
-            }
-        }
+    // CuteNovna v1.0.3: sin perfil — las estanterías se muestran tal cual.
+    val homeShelves = homeData
     val newRelease by viewModel.newRelease.collectAsStateWithLifecycle()
     val chart by viewModel.chart.collectAsStateWithLifecycle()
     val moodMomentAndGenre by viewModel.exploreMoodItem.collectAsStateWithLifecycle()
@@ -268,6 +247,9 @@ fun HomeScreen(
     val regionChart by viewModel.regionCodeChart.collectAsStateWithLifecycle()
     val reloadDestination by sharedViewModel.reloadDestination.collectAsStateWithLifecycle()
     val pullToRefreshState = rememberPullToRefreshState()
+    // CuteNovna v1.0.3: tema elegido (para el botón de temas y la guirnalda).
+    val cutenovnaThemeId by sharedViewModel.getCuteNovnaTheme().collectAsStateWithLifecycle(CuteNovnaTheme.NAVIDAD.id)
+    var showThemePicker by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val chipRowState = rememberScrollState()
     val params by viewModel.params.collectAsStateWithLifecycle()
@@ -757,7 +739,7 @@ fun HomeScreen(
                 val createPinned = getPlatform() == Platform.Desktop || getScreenSizeInfo().let { it.wDP >= it.hDP }
                 val chipHeadFade by animateFloatAsState(if (chipRowState.canScrollBackward) 1f else 0f)
                 val chipTailFade by animateFloatAsState(if (chipRowState.canScrollForward) 1f else 0f)
-                // Notifications moved into the avatar menu, Listen Together into the Create sheet.
+                // Listen Together va en la hoja de Crear.
                 val createActions: @Composable () -> Unit = {
                     CreateActions(
                         backdrop = chipBackdrop,
@@ -771,11 +753,11 @@ fun HomeScreen(
                             .height(56.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // CuteNovna v1.0.3: en el lugar del botón de perfil va el botón
+                    // de temas (el perfil se quitó por completo).
                     Box(Modifier.padding(start = 16.dp, end = 8.dp)) {
-                        HomeAccountButton(
-                            accountName = accountInfo?.first,
-                            thumbnailUrl = accountInfo?.second,
-                            navController = navController,
+                        ThemePickerButton(
+                            onClick = { showThemePicker = true },
                         )
                     }
                     BoxWithConstraints(
@@ -833,9 +815,18 @@ fun HomeScreen(
                 }
             }
         }
-        // CuteNovna: guirnalda navideña arriba y nieve animada discreta sobre Inicio.
-        ChristmasLightsStrip(Modifier.align(Alignment.TopCenter))
-        SnowfallOverlay(Modifier.fillMaxSize())
+        // CuteNovna v1.0.3: guirnalda solo con el tema Navidad. Las partículas
+        // del tema van en toda la app desde App.kt (ya no hay nieve solo en Inicio).
+        if (cutenovnaThemeId == CuteNovnaTheme.NAVIDAD.id) {
+            ChristmasLightsStrip(Modifier.align(Alignment.TopCenter))
+        }
+        if (showThemePicker) {
+            ThemePickerDialog(
+                currentThemeId = cutenovnaThemeId,
+                onSelect = { sharedViewModel.setCuteNovnaTheme(it) },
+                onDismiss = { showThemePicker = false },
+            )
+        }
     }
 }
 
@@ -887,125 +878,6 @@ private fun chipFadeStops(
     }
 
 private const val CHIP_FADE_STEPS = 24
-
-/**
- * The avatar at the start of Home's header. It opens a menu showing who is signed in and the
- * greeting the old app bar used to show. Signed out, the avatar is a person glyph and the menu
- * offers the log-in.
- */
-@Composable
-private fun HomeAccountButton(
-    accountName: String?,
-    thumbnailUrl: String?,
-    navController: NavController,
-) {
-    var menuOpen by remember { mutableStateOf(false) }
-    // Sign-out blanks the stored account name, so a blank name is the signed-out state.
-    val signedIn = !accountName.isNullOrBlank()
-    // CuteNovna v1.0.2: sin cuentas ni "invitado": el nombre visible es siempre la app.
-    val displayName = if (signedIn) accountName.orEmpty() else "CuteNovna"
-    val hour = remember { now().time.hour }
-    val greeting =
-        stringResource(
-            when (hour) {
-                in 6..12 -> Res.string.good_morning
-                in 13..17 -> Res.string.good_afternoon
-                in 18..23 -> Res.string.good_evening
-                else -> Res.string.good_night
-            },
-        )
-    Box {
-        AccountAvatar(
-            signedIn = signedIn,
-            thumbnailUrl = thumbnailUrl,
-            // The Create pill's height, as Apple sizes an avatar like the glass buttons beside it.
-            size = 44.dp,
-            contentDescription = displayName,
-            modifier = Modifier.clickable { menuOpen = true },
-        )
-        DropdownMenu(
-            expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
-            // The draft's 280dp (also Material's widest menu item) instead of wrapping its content,
-            // which left the menu as narrow as its longest row. Capped, not fixed: a window narrower
-            // than that gets a menu as wide as the window instead of one that runs off it.
-            modifier =
-                Modifier
-                    .widthIn(max = 280.dp)
-                    .fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                AccountAvatar(
-                    signedIn = signedIn,
-                    thumbnailUrl = thumbnailUrl,
-                    size = 40.dp,
-                    contentDescription = null,
-                )
-                Column {
-                    Text(text = displayName, style = typo().titleSmall, maxLines = 1)
-                    Text(text = greeting, style = typo().bodySmall)
-                }
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(Res.string.notification), style = typo().bodyMedium) },
-                leadingIcon = { Icon(SimpIcons.Notifications, contentDescription = null) },
-                onClick = {
-                    menuOpen = false
-                    navController.navigate(NotificationDestination)
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun AccountAvatar(
-    signedIn: Boolean,
-    thumbnailUrl: String?,
-    size: Dp,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-) {
-    val avatarModifier =
-        Modifier
-            .size(size)
-            .clip(CircleShape)
-            .then(modifier)
-    if (signedIn && !thumbnailUrl.isNullOrBlank()) {
-        AsyncImage(
-            model =
-                ImageRequest
-                    .Builder(LocalPlatformContext.current)
-                    .data(thumbnailUrl)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .diskCacheKey(thumbnailUrl)
-                    .crossfade(true)
-                    .build(),
-            placeholder = rememberHolderPainter(),
-            error = rememberHolderPainter(),
-            contentDescription = contentDescription,
-            contentScale = ContentScale.Crop,
-            modifier = avatarModifier,
-        )
-    } else {
-        Box(
-            modifier = avatarModifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = SimpIcons.Person,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(size * 0.6f),
-            )
-        }
-    }
-}
 
 // Portrait fills the width with one column (the next one peeking in). On a landscape window that one
 // column stretched across the whole screen, so every row there is capped instead.

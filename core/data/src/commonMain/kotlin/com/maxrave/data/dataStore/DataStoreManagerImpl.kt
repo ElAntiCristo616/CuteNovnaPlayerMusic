@@ -1010,6 +1010,19 @@ internal class DataStoreManagerImpl(
         }
     }
 
+    override val cutenovnaTheme =
+        settingsDataStore.data.map { preferences ->
+            preferences[CUTENOVNA_THEME] ?: "navidad"
+        }
+
+    override suspend fun setCuteNovnaTheme(themeId: String) {
+        withContext(Dispatchers.IO) {
+            settingsDataStore.edit { settings ->
+                settings[CUTENOVNA_THEME] = themeId
+            }
+        }
+    }
+
     override val nowPlayingStyle =
         settingsDataStore.data.map { preferences ->
             preferences[NOW_PLAYING_STYLE] ?: DataStoreManager.NOW_PLAYING_STYLE_SPOTIFY
@@ -1964,6 +1977,7 @@ internal class DataStoreManagerImpl(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val THEME_COLOR_SOURCE = stringPreferencesKey("theme_color_source")
         val CUSTOM_THEME_COLOR = stringPreferencesKey("custom_theme_color")
+        val CUTENOVNA_THEME = stringPreferencesKey("cutenovna_theme")
         val NOW_PLAYING_STYLE = stringPreferencesKey("now_playing_style")
         val LYRICS_STYLE = stringPreferencesKey("lyrics_style")
         val ROMANIZATION_LANGUAGES = stringPreferencesKey("romanization_languages")

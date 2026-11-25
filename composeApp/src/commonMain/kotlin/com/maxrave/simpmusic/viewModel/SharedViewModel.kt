@@ -2162,6 +2162,15 @@ class SharedViewModel(
         }
     }
 
+    /** Tema CuteNovna elegido (se guarda en DataStore, sobrevive a reinicios). */
+    fun getCuteNovnaTheme() = dataStoreManager.cutenovnaTheme
+
+    fun setCuteNovnaTheme(themeId: String) {
+        viewModelScope.launch {
+            dataStoreManager.setCuteNovnaTheme(themeId)
+        }
+    }
+
     fun setNowPlayingStyle(style: String) {
         viewModelScope.launch {
             dataStoreManager.setNowPlayingStyle(style)

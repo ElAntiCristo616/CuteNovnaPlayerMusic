@@ -172,7 +172,6 @@ private fun tintFor(id: String): Color {
     return palette[index]
 }
 
-private fun initialOf(name: String): String = name.trim().firstOrNull()?.uppercase() ?: "?"
 
 @Composable
 fun ListenTogetherScreen(
@@ -181,7 +180,6 @@ fun ListenTogetherScreen(
     viewModel: ListenTogetherViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val codeInput by viewModel.roomCodeInput.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var managing by remember { mutableStateOf<RoomMember?>(null) }
@@ -282,7 +280,7 @@ fun ListenTogetherScreen(
                                 .animateContentSize(),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        WorkArea(state, displayName, codeInput, viewModel, { managing = it })
+                        WorkArea(state, codeInput, viewModel, { managing = it })
                     }
                     VerticalScrollBar(
                         scrollState = workScroll,
@@ -308,7 +306,7 @@ fun ListenTogetherScreen(
                 AnimatedVisibility(visible = state.inRoom) {
                     RoomCodePoster(state, copyCode, shareCode)
                 }
-                WorkArea(state, displayName, codeInput, viewModel, { managing = it })
+                WorkArea(state, codeInput, viewModel, { managing = it })
             }
             VerticalScrollBar(
                 scrollState = pageScroll,
@@ -348,7 +346,6 @@ fun ListenTogetherScreen(
 @Composable
 private fun ColumnScope.WorkArea(
     state: ListenTogetherRoom,
-    displayName: String,
     codeInput: String,
     viewModel: ListenTogetherViewModel,
     onManage: (RoomMember) -> Unit,
@@ -364,7 +361,8 @@ private fun ColumnScope.WorkArea(
     when {
         state.inRoom -> {
             AnimatedVisibility(visible = state.waitingFor.isNotEmpty()) {
-                BufferBanner(state.waitingForNames)
+                // CuteNovna v1.0.3: sin nombres en la sala.
+                BufferBanner(emptyList())
             }
             AnimatedVisibility(visible = state.isHost && state.joinRequests.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -391,11 +389,11 @@ private fun ColumnScope.WorkArea(
         }
 
         else -> {
-            NameField(displayName, viewModel::onDisplayNameChange)
-
+            // CuteNovna v1.0.3: sin campo de nombre — la app usa un nombre
+            // anónimo interno ("Oyente-XXXX") que nunca se muestra.
             PrimaryButton(
                 text = stringResource(Res.string.lt_create_room),
-                enabled = displayName.isNotBlank() && state.isConnected,
+                enabled = state.isConnected,
                 onClick = viewModel::createRoom,
             )
 
@@ -405,7 +403,7 @@ private fun ColumnScope.WorkArea(
 
             SecondaryButton(
                 text = stringResource(Res.string.lt_join_room),
-                enabled = displayName.isNotBlank() && codeInput.length == ROOM_CODE_LENGTH && state.isConnected,
+                enabled = codeInput.length == ROOM_CODE_LENGTH && state.isConnected,
                 onClick = viewModel::joinRoom,
             )
 
@@ -420,37 +418,12 @@ private fun ColumnScope.WorkArea(
         }
     }
 
-    CreditFooter()
     EndOfPage(withoutCredit = true)
 }
 
-/**
- * Where the protocol came from.
- *
- * Left-aligned with everything else: EndOfPage centres its own credit, which reads as misaligned
- * the moment the page stops being a single centred column.
- */
-@Composable
-private fun CreditFooter() {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Text(
-            text = stringResource(Res.string.lt_credit_protocol),
-            style = typo().bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = stringResource(Res.string.lt_credit_compatible),
-            style = typo().bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 /** Prefix for the share button; the code alone means nothing to the recipient. */
-private const val SHARE_PREFIX = "Join my SimpMusic room with code "
+private const val SHARE_PREFIX = "Únete a mi sala de CuteNovna con el código "
 
 // ───────────────────────────────── structure ─────────────────────────────────
 
@@ -753,9 +726,10 @@ private fun JoinRequests(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Avatar(initialOf(request.username), tintFor(request.userId), 40.dp)
+                Avatar("?", tintFor(request.userId), 40.dp)
                 Column(Modifier.weight(1f)) {
-                    Text(request.username, style = typo().bodyMedium, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
+                    // CuteNovna v1.0.3: sin nombres en la sala.
+                    Text("Un oyente", style = typo().bodyMedium, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
                     Text(
                         stringResource(Res.string.lt_just_asked),
                         style = typo().bodySmall,
@@ -798,7 +772,7 @@ private fun Suggestions(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${suggestion.fromUsername} suggested",
+                        "Sugerencia de un oyente",
                         style = typo().bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -842,16 +816,11 @@ private fun Members(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Avatar(initialOf(member.username), tintFor(member.userId), 40.dp)
+                Avatar("?", tintFor(member.userId), 40.dp)
                 Column(Modifier.weight(1f)) {
+                    // CuteNovna v1.0.3: sin nombres en la sala (solo el distintivo
+                    // de anfitrión y el estado, que no identifican a nadie).
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            member.username,
-                            style = typo().bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
                         if (member.isHost) {
                             Box(
                                 Modifier
@@ -972,9 +941,9 @@ private fun MemberActionDialog(
                     .padding(20.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Avatar(initialOf(member.username), tintFor(member.userId), 40.dp)
+                Avatar("?", tintFor(member.userId), 40.dp)
                 Text(
-                    member.username,
+                    "Miembro",
                     style = typo().titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -1245,32 +1214,6 @@ private fun DividerLabel(text: String) {
     }
 }
 
-@Composable
-private fun NameField(
-    value: String,
-    onValueChange: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(Res.string.lt_display_name), style = typo().bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = typo().bodyMedium.copy(color = MaterialTheme.colorScheme.onBackground),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .clip(ROW_SHAPE)
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)),
-            decorationBox = { inner ->
-                Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) { inner() }
-            },
-        )
-        Text(stringResource(Res.string.lt_display_name_hint), style = typo().bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
 
 @Composable
 private fun CodeInput(

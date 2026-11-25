@@ -50,7 +50,10 @@ class ListenTogetherViewModel(
     val state: StateFlow<ListenTogetherRoom> =
         repository.room.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListenTogetherRoom())
 
-    private val _displayName = MutableStateFlow("")
+    // CuteNovna v1.0.3: sin campo de nombre — el protocolo necesita un nombre de
+    // usuario, así que la app usa uno anónimo interno que nunca se muestra.
+    // Aleatorio por arranque: dos personas nunca comparten el mismo nombre.
+    private val _displayName = MutableStateFlow("Oyente-${(1000..9999).random()}")
     val displayName: StateFlow<String> = _displayName.asStateFlow()
 
     private val _roomCodeInput = MutableStateFlow("")
